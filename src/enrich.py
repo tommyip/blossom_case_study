@@ -101,24 +101,3 @@ def match_grants(companies: pl.DataFrame, cordis: pl.DataFrame) -> pl.DataFrame:
     )
 
     return result.drop("_name_norm")
-
-
-async def get_job_count(company_name: str) -> dict:
-    """Get job posting count for a company.
-
-    NOTE: Indeed/LinkedIn block direct scraping (403).
-    Would need browser automation or API access.
-    """
-    # Placeholder - would need playwright/selenium for real implementation
-    return {"open_roles": 0, "is_hiring": False}
-
-
-async def enrich_with_jobs(companies: pl.DataFrame, limit: int | None = None) -> pl.DataFrame:
-    """Add job posting data to companies.
-
-    NOTE: Returns 0 jobs due to Indeed/LinkedIn blocking.
-    """
-    return companies.with_columns(
-        pl.lit(0).alias("open_roles_count"),
-        pl.lit(False).alias("is_hiring"),
-    )

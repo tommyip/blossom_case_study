@@ -34,8 +34,20 @@ def main():
     # Tech filter
     tech_only = st.sidebar.checkbox("Tech companies only")
 
-    # Website filter
-    has_website = st.sidebar.checkbox("Has website data")
+    # Research filter
+    has_research = st.sidebar.checkbox("Has research data")
+
+    # Verdict filter
+    selected_verdicts = []
+    if "verdict" in df.columns:
+        verdicts = sorted([v for v in df["verdict"].unique().to_list() if v and v != "Unknown"])
+        selected_verdicts = st.sidebar.multiselect("Investment Verdict", verdicts, default=[])
+
+    # Stage filter
+    selected_stages = []
+    if "stage" in df.columns:
+        stages = sorted([s for s in df["stage"].unique().to_list() if s and s != "Unknown"])
+        selected_stages = st.sidebar.multiselect("Company Stage", stages, default=[])
 
     # Search
     search = st.sidebar.text_input("Search company name")
@@ -46,8 +58,12 @@ def main():
         filtered = filtered.filter(pl.col("nace_category").is_in(selected_cats))
     if tech_only:
         filtered = filtered.filter(pl.col("is_tech") == True)
-    if has_website and "website_url" in df.columns:
-        filtered = filtered.filter(pl.col("website_url").is_not_null())
+    if has_research and "research_report" in df.columns:
+        filtered = filtered.filter(pl.col("research_report").is_not_null())
+    if "verdict" in df.columns and selected_verdicts:
+        filtered = filtered.filter(pl.col("verdict").is_in(selected_verdicts))
+    if "stage" in df.columns and selected_stages:
+        filtered = filtered.filter(pl.col("stage").is_in(selected_stages))
     if search:
         filtered = filtered.filter(pl.col("company_name").str.to_lowercase().str.contains(search.lower()))
 
@@ -68,37 +84,15 @@ def main():
         grant_count = filtered.filter(pl.col("has_eu_grant") == True).shape[0]
         st.metric("With EU Grants", f"{grant_count:,}")
     with col5:
-        if "website_url" in filtered.columns:
-            website_count = filtered.filter(pl.col("website_url").is_not_null()).shape[0]
-            st.metric("With Website", f"{website_count:,}")
+        if "research_report" in filtered.columns:
+            research_count = filtered.filter(pl.col("research_report").is_not_null()).shape[0]
+            st.metric("With Research", f"{research_count:,}")
         else:
-            st.metric("With Website", "N/A")
+            st.metric("With Research", "N/A")
 
     st.divider()
-
-    # Data table
-    st.subheader("Companies")
-
-    display_cols = [
-        "company_name",
-        "category",  # LLM-generated category
-        "description",
-        "nace_category",
-        "is_tech",
-        "company_reg_date",
-        "website_url",
-    ]
-    display_df = filtered.select([c for c in display_cols if c in filtered.columns])
-
-    st.dataframe(
-        display_df.to_pandas(),
-        use_container_width=True,
-        hide_index=True,
-        height=400,
-    )
 
     # Charts
-    st.divider()
     col1, col2 = st.columns(2)
 
     with col1:
@@ -123,14 +117,64 @@ def main():
         )
         st.bar_chart(yearly, x="year", y="len")
 
+    st.divider()
+
+    # Data table with selection
+    st.subheader("Companies")
+
+    display_cols = [
+        "company_name",
+        "verdict",
+        "industry",
+        "stage",
+        "business_model",
+        "nace_category",
+        "is_tech",
+        "company_reg_date",
+    ]
+    display_df = filtered.select([c for c in display_cols if c in filtered.columns])
+
+    # Sort by verdict ascending (1-Promising first)
+    if "verdict" in display_df.columns:
+        display_df = display_df.sort("verdict", nulls_last=True)
+
+    selection = st.dataframe(
+        display_df.to_pandas(),
+        use_container_width=True,
+        hide_index=True,
+        height=400,
+        on_select="rerun",
+        selection_mode="single-row",
+    )
+
     # Detail view
     st.divider()
     st.subheader("Company Detail")
-    company_names = filtered["company_name"].to_list()[:100]
+
+    # Use sorted display_df for company names (matches table order)
+    company_names = display_df["company_name"].to_list()
+
+    # Get selected company from table click or selectbox
+    selected_idx = None
+    if selection and selection.selection and selection.selection.rows:
+        selected_idx = selection.selection.rows[0]
+
     if company_names:
-        selected = st.selectbox("Select company", company_names)
+        # If a row was clicked, use that; otherwise use selectbox
+        default_idx = selected_idx if selected_idx is not None and selected_idx < len(company_names) else 0
+        selected = st.selectbox("Select company", company_names, index=default_idx)
         if selected:
             detail = filtered.filter(pl.col("company_name") == selected).to_pandas().iloc[0]
+
+            # Verdict badge
+            verdict = detail.get("verdict") or ""
+            if "Promising" in verdict:
+                st.success(f"**Verdict: Promising** - {detail.get('verdict_reason') or ''}")
+            elif "Maybe" in verdict:
+                st.warning(f"**Verdict: Maybe** - {detail.get('verdict_reason') or ''}")
+            elif "Pass" in verdict:
+                st.error(f"**Verdict: Pass** - {detail.get('verdict_reason') or ''}")
+
             col1, col2, col3 = st.columns(3)
             with col1:
                 st.write("**Company Number:**", detail.get("company_num"))
@@ -146,29 +190,19 @@ def main():
                         st.write(f"  {addr}")
                 st.write("**Eircode:**", detail.get("eircode"))
             with col3:
-                if detail.get("website_url"):
-                    st.write("**Website:**", detail.get("website_url"))
-                    st.write("**Category:**", detail.get("category") or "N/A")
-                    st.write("**Target Market:**", detail.get("target_market") or "N/A")
-                    st.write("**Stage:**", detail.get("company_stage") or "N/A")
-                else:
-                    st.write("*No website data*")
+                st.write("**Industry:**", detail.get("industry") or "N/A")
+                st.write("**Sub-industry:**", detail.get("sub_industry") or "N/A")
+                st.write("**Business Model:**", detail.get("business_model") or "N/A")
+                st.write("**Stage:**", detail.get("stage") or "N/A")
+                st.write("**Founded:**", detail.get("founded_year") or "N/A")
+                st.write("**Employees:**", detail.get("employee_count") or "N/A")
+                st.write("**Funding:**", detail.get("funding_total") or "N/A")
 
-            # Detailed company profile (full width)
-            if detail.get("description"):
+            # Research report (full width)
+            if detail.get("research_report"):
                 st.divider()
-                st.subheader("Company Profile")
-                st.write("**Description:**", detail.get("description"))
-                if detail.get("products"):
-                    st.write("**Products/Services:**", detail.get("products"))
-                if detail.get("technology"):
-                    st.write("**Technology:**", detail.get("technology"))
-                if detail.get("customers"):
-                    st.write("**Customers:**", detail.get("customers"))
-                if detail.get("use_cases"):
-                    st.write("**Use Cases:**", detail.get("use_cases"))
-                if detail.get("differentiators"):
-                    st.write("**Differentiators:**", detail.get("differentiators"))
+                st.subheader("Investment Research Report")
+                st.markdown(detail.get("research_report"))
 
 
 if __name__ == "__main__":

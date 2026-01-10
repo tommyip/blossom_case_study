@@ -12,8 +12,7 @@ Scraper for Irish CRO to identify Series A investment opportunities. Case study 
 - `beautifulsoup4` + `lxml` - parsing
 - `polars` - data (NOT pandas)
 - `streamlit` - dashboard
-- `openai` - LLM analysis (OpenAI-compatible API)
-- `duckduckgo-search` - website discovery
+- `openai` - Tongyi DeepResearch via OpenRouter
 
 ## Code Style
 - **Minimal**. No defensive programming.
@@ -37,8 +36,11 @@ uv run streamlit run src/app.py  # run dashboard
 - **CRO bulk download** - 805k companies from opendata.cro.ie
 - **Filtering** - Normal status, last 5 years, LTD/DAC types → ~107k companies
 - **NACE mapping** - Industry categories, tech company identification → ~24k tech companies
-- **Website enrichment** - Domain guessing + LLM analysis for top 100 software companies (~62% hit rate)
-- **Streamlit dashboard** - Filters, KPIs, data table, charts
+- **Deep Research** - Tongyi DeepResearch via OpenRouter for top 100 software companies
+  - Investment memos with company overview, market, technology, team, funding, competitive landscape
+  - Structured data: industry, stage, verdict, key people, funding, employees
+  - Cost: ~$0.0016 per company (~$0.16 for 100 companies)
+- **Streamlit dashboard** - Filters, KPIs, data table, investment reports
 
 ### Infrastructure
 - Per-domain rate limiting via `aiolimiter`
@@ -55,10 +57,6 @@ uv run streamlit run src/app.py  # run dashboard
 **Tested**: Playwright (headless/headed), playwright-stealth, nodriver - all blocked
 **Solution needed**: Captcha-solving service (2Captcha) or manual session cookies
 
-### Job Postings (Indeed/LinkedIn)
-**Status**: Blocked (403)
-**Solution needed**: Browser automation or API access
-
 ### CORDIS EU Grants
 **Status**: URL changed, needs manual download
 **Source**: https://data.europa.eu/data/datasets/cordis-eu-research-projects-under-horizon-europe-2021-2027
@@ -68,11 +66,10 @@ uv run streamlit run src/app.py  # run dashboard
 
 ## Environment Variables
 
-For website enrichment with LLM analysis:
+For Tongyi DeepResearch via OpenRouter:
 ```bash
-export OPENAI_BASE_URL="https://openrouter.ai/api/v1"  # or other OpenAI-compatible API
-export OPENAI_API_KEY="your-api-key"
-export OPENAI_MODEL="gpt-4o-mini"  # optional, defaults to gpt-4o-mini
+export OPENAI_BASE_URL="https://openrouter.ai/api/v1"
+export OPENAI_API_KEY="your-openrouter-api-key"
 ```
 
 ---
@@ -96,11 +93,9 @@ Free API: `https://api.github.com/orgs/{org_name}`
 
 | Signal | What it tells you |
 |--------|-------------------|
-| Website/product | What they actually build |
+| Deep Research | Company overview, team, funding, competitive landscape |
 | NACE code | Industry classification |
-| Job postings | Growth trajectory |
 | EU grants | Technical validation |
-| GitHub | Developer traction |
 
 **Blossom cares about**:
 - Mission-driven founders
