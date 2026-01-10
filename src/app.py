@@ -34,6 +34,9 @@ def main():
     # Tech filter
     tech_only = st.sidebar.checkbox("Tech companies only")
 
+    # Website filter
+    has_website = st.sidebar.checkbox("Has website data")
+
     # Search
     search = st.sidebar.text_input("Search company name")
 
@@ -43,11 +46,13 @@ def main():
         filtered = filtered.filter(pl.col("nace_category").is_in(selected_cats))
     if tech_only:
         filtered = filtered.filter(pl.col("is_tech") == True)
+    if has_website and "website_url" in df.columns:
+        filtered = filtered.filter(pl.col("website_url").is_not_null())
     if search:
         filtered = filtered.filter(pl.col("company_name").str.to_lowercase().str.contains(search.lower()))
 
     # KPI cards
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         st.metric("Total Companies", f"{filtered.shape[0]:,}")
     with col2:
@@ -62,6 +67,12 @@ def main():
     with col4:
         grant_count = filtered.filter(pl.col("has_eu_grant") == True).shape[0]
         st.metric("With EU Grants", f"{grant_count:,}")
+    with col5:
+        if "website_url" in filtered.columns:
+            website_count = filtered.filter(pl.col("website_url").is_not_null()).shape[0]
+            st.metric("With Website", f"{website_count:,}")
+        else:
+            st.metric("With Website", "N/A")
 
     st.divider()
 
@@ -70,11 +81,12 @@ def main():
 
     display_cols = [
         "company_name",
+        "category",  # LLM-generated category
+        "description",
         "nace_category",
         "is_tech",
         "company_reg_date",
-        "company_type",
-        "eircode",
+        "website_url",
     ]
     display_df = filtered.select([c for c in display_cols if c in filtered.columns])
 
@@ -119,12 +131,12 @@ def main():
         selected = st.selectbox("Select company", company_names)
         if selected:
             detail = filtered.filter(pl.col("company_name") == selected).to_pandas().iloc[0]
-            col1, col2 = st.columns(2)
+            col1, col2, col3 = st.columns(3)
             with col1:
                 st.write("**Company Number:**", detail.get("company_num"))
                 st.write("**Type:**", detail.get("company_type"))
                 st.write("**Registered:**", detail.get("company_reg_date"))
-                st.write("**Category:**", detail.get("nace_category"))
+                st.write("**NACE Category:**", detail.get("nace_category"))
                 st.write("**Tech:**", "Yes" if detail.get("is_tech") else "No")
             with col2:
                 st.write("**Address:**")
@@ -133,6 +145,30 @@ def main():
                     if addr:
                         st.write(f"  {addr}")
                 st.write("**Eircode:**", detail.get("eircode"))
+            with col3:
+                if detail.get("website_url"):
+                    st.write("**Website:**", detail.get("website_url"))
+                    st.write("**Category:**", detail.get("category") or "N/A")
+                    st.write("**Target Market:**", detail.get("target_market") or "N/A")
+                    st.write("**Stage:**", detail.get("company_stage") or "N/A")
+                else:
+                    st.write("*No website data*")
+
+            # Detailed company profile (full width)
+            if detail.get("description"):
+                st.divider()
+                st.subheader("Company Profile")
+                st.write("**Description:**", detail.get("description"))
+                if detail.get("products"):
+                    st.write("**Products/Services:**", detail.get("products"))
+                if detail.get("technology"):
+                    st.write("**Technology:**", detail.get("technology"))
+                if detail.get("customers"):
+                    st.write("**Customers:**", detail.get("customers"))
+                if detail.get("use_cases"):
+                    st.write("**Use Cases:**", detail.get("use_cases"))
+                if detail.get("differentiators"):
+                    st.write("**Differentiators:**", detail.get("differentiators"))
 
 
 if __name__ == "__main__":

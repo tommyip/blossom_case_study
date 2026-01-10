@@ -12,6 +12,8 @@ Scraper for Irish CRO to identify Series A investment opportunities. Case study 
 - `beautifulsoup4` + `lxml` - parsing
 - `polars` - data (NOT pandas)
 - `streamlit` - dashboard
+- `openai` - LLM analysis (OpenAI-compatible API)
+- `duckduckgo-search` - website discovery
 
 ## Code Style
 - **Minimal**. No defensive programming.
@@ -35,6 +37,7 @@ uv run streamlit run src/app.py  # run dashboard
 - **CRO bulk download** - 805k companies from opendata.cro.ie
 - **Filtering** - Normal status, last 5 years, LTD/DAC types → ~107k companies
 - **NACE mapping** - Industry categories, tech company identification → ~24k tech companies
+- **Website enrichment** - Domain guessing + LLM analysis for top 100 software companies (~62% hit rate)
 - **Streamlit dashboard** - Filters, KPIs, data table, charts
 
 ### Infrastructure
@@ -47,9 +50,10 @@ uv run streamlit run src/app.py  # run dashboard
 ## Pending Implementation (Blocked)
 
 ### CORE Directors Scraper
-**Status**: Blocked by Cloudflare (403)
+**Status**: Blocked by Cloudflare Turnstile
 **URL**: `https://core.cro.ie/company/{company_number}`
-**Solution needed**: Browser automation (playwright/selenium)
+**Tested**: Playwright (headless/headed), playwright-stealth, nodriver - all blocked
+**Solution needed**: Captcha-solving service (2Captcha) or manual session cookies
 
 ### Job Postings (Indeed/LinkedIn)
 **Status**: Blocked (403)
@@ -62,13 +66,18 @@ uv run streamlit run src/app.py  # run dashboard
 
 ---
 
-## Future Enrichment Ideas
+## Environment Variables
 
-### Company Website (HIGHEST VALUE)
-Scrape homepage + /about page, use LLM for:
-- One-line product description
-- Product category (SaaS, Fintech, Biotech, etc.)
-- Target market
+For website enrichment with LLM analysis:
+```bash
+export OPENAI_BASE_URL="https://openrouter.ai/api/v1"  # or other OpenAI-compatible API
+export OPENAI_API_KEY="your-api-key"
+export OPENAI_MODEL="gpt-4o-mini"  # optional, defaults to gpt-4o-mini
+```
+
+---
+
+## Future Enrichment Ideas
 
 ### Enterprise Ireland HPSU
 Check news/press releases for HPSU status badge.

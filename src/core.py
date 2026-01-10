@@ -1,8 +1,15 @@
 """
 CORE website scraper for director information.
 
-NOTE: core.cro.ie is behind Cloudflare protection and returns 403 for direct requests.
-Production implementation would need browser automation (playwright/selenium).
+NOTE: core.cro.ie is protected by Cloudflare Turnstile CAPTCHA.
+Tested approaches that all fail:
+- aiohttp direct requests (403)
+- Playwright headless (challenge never resolves)
+- Playwright headed (Turnstile captcha blocks)
+- playwright-stealth (blocked)
+- nodriver/undetected-chromedriver (blocked)
+
+Would need captcha-solving service (2Captcha) or manual session cookies.
 """
 
 from bs4 import BeautifulSoup

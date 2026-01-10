@@ -7,6 +7,7 @@ import polars as pl
 from src.cro import download_companies
 from src.nace import get_nace_category, is_tech_company
 from src.enrich import download_cordis, match_grants, enrich_with_jobs
+from src.website import enrich_with_websites
 from src.http import close_session
 
 OUTPUT_DIR = Path(__file__).parent.parent / "output"
@@ -51,7 +52,9 @@ def select_output_columns(df: pl.DataFrame) -> pl.DataFrame:
     ]
 
     # Add enrichment columns if present
-    for col in ["has_eu_grant", "eu_grant_amount", "eu_project_title", "open_roles_count", "is_hiring"]:
+    for col in ["has_eu_grant", "eu_grant_amount", "eu_project_title", "open_roles_count", "is_hiring",
+                "website_url", "description", "products", "technology", "customers", "use_cases",
+                "category", "target_market", "company_stage", "differentiators"]:
         if col in df.columns:
             cols.append(col)
 
@@ -64,23 +67,23 @@ async def main():
     print("=" * 60)
 
     # Step 1: Download companies
-    print("\n[1/5] Downloading companies...")
+    print("\n[1/6] Downloading companies...")
     companies = await download_companies()
     print(f"  Total companies: {companies.shape[0]:,}")
 
     # Step 2: Filter
-    print("\n[2/5] Filtering...")
+    print("\n[2/6] Filtering...")
     filtered = filter_companies(companies)
     print(f"  After filters: {filtered.shape[0]:,}")
 
     # Step 3: Add NACE categories
-    print("\n[3/5] Adding NACE categories...")
+    print("\n[3/6] Adding NACE categories...")
     enriched = add_nace_columns(filtered)
     tech_count = enriched.filter(pl.col("is_tech") == True).shape[0]
     print(f"  Tech companies: {tech_count:,}")
 
     # Step 4: CORDIS grants
-    print("\n[4/5] Matching EU grants...")
+    print("\n[4/6] Matching EU grants...")
     cordis = await download_cordis()
     if not cordis.is_empty():
         enriched = match_grants(enriched, cordis)
@@ -95,9 +98,15 @@ async def main():
         print("  (CORDIS data not available)")
 
     # Step 5: Job postings
-    print("\n[5/5] Adding job data...")
+    print("\n[5/6] Adding job data...")
     enriched = await enrich_with_jobs(enriched)
     print("  (Job scraping requires browser automation)")
+
+    # Step 6: Website enrichment
+    print("\n[6/6] Enriching with website data...")
+    enriched = await enrich_with_websites(enriched, limit=100)
+    enriched_count = enriched.filter(pl.col("website_url").is_not_null()).shape[0]
+    print(f"  Companies with website data: {enriched_count:,}")
 
     # Sort: tech first, then by registration date
     enriched = enriched.sort(["is_tech", "company_reg_date"], descending=[True, True])
