@@ -1,0 +1,17 @@
+# Data
+data/
+output/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+
+# UV
+uv.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp

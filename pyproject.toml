@@ -1,7 +1,17 @@
 [project]
 name = "blossom-case-study"
 version = "0.1.0"
-description = "Add your description here"
+description = "Ireland CRO scraper for Series A investment opportunities"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "aiohttp",
+    "aiolimiter",
+    "diskcache",
+    "beautifulsoup4",
+    "lxml",
+    "polars",
+    "streamlit",
+    "pydantic",
+    "tenacity",
+]
