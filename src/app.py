@@ -119,90 +119,79 @@ def main():
 
     st.divider()
 
-    # Data table with selection
-    st.subheader("Companies")
+    # Two-column layout: table on left, detail on right
+    left_col, right_col = st.columns([2, 3])
 
-    display_cols = [
-        "company_name",
-        "verdict",
-        "industry",
-        "stage",
-        "business_model",
-        "nace_category",
-        "is_tech",
-        "company_reg_date",
-    ]
-    display_df = filtered.select([c for c in display_cols if c in filtered.columns])
+    with left_col:
+        st.subheader("Companies")
 
-    # Sort by verdict ascending (1-Promising first)
-    if "verdict" in display_df.columns:
-        display_df = display_df.sort("verdict", nulls_last=True)
+        display_cols = [
+            "company_name",
+            "verdict",
+            "industry",
+            "stage",
+        ]
+        display_df = filtered.select([c for c in display_cols if c in filtered.columns])
 
-    selection = st.dataframe(
-        display_df.to_pandas(),
-        use_container_width=True,
-        hide_index=True,
-        height=400,
-        on_select="rerun",
-        selection_mode="single-row",
-    )
+        # Sort by verdict ascending (1-Promising first)
+        if "verdict" in display_df.columns:
+            display_df = display_df.sort("verdict", nulls_last=True)
 
-    # Detail view
-    st.divider()
-    st.subheader("Company Detail")
+        selection = st.dataframe(
+            display_df.to_pandas(),
+            use_container_width=True,
+            hide_index=True,
+            height=600,
+            on_select="rerun",
+            selection_mode="single-row",
+        )
 
-    # Use sorted display_df for company names (matches table order)
-    company_names = display_df["company_name"].to_list()
+    with right_col:
+        st.subheader("Company Detail")
 
-    # Get selected company from table click or selectbox
-    selected_idx = None
-    if selection and selection.selection and selection.selection.rows:
-        selected_idx = selection.selection.rows[0]
+        # Use sorted display_df for company names (matches table order)
+        company_names = display_df["company_name"].to_list()
 
-    if company_names:
-        # If a row was clicked, use that; otherwise use selectbox
-        default_idx = selected_idx if selected_idx is not None and selected_idx < len(company_names) else 0
-        selected = st.selectbox("Select company", company_names, index=default_idx)
-        if selected:
-            detail = filtered.filter(pl.col("company_name") == selected).to_pandas().iloc[0]
+        # Get selected company from table click or selectbox
+        selected_idx = None
+        if selection and selection.selection and selection.selection.rows:
+            selected_idx = selection.selection.rows[0]
 
-            # Verdict badge
-            verdict = detail.get("verdict") or ""
-            if "Promising" in verdict:
-                st.success(f"**Verdict: Promising** - {detail.get('verdict_reason') or ''}")
-            elif "Maybe" in verdict:
-                st.warning(f"**Verdict: Maybe** - {detail.get('verdict_reason') or ''}")
-            elif "Pass" in verdict:
-                st.error(f"**Verdict: Pass** - {detail.get('verdict_reason') or ''}")
+        if company_names:
+            # If a row was clicked, use that; otherwise use selectbox
+            default_idx = selected_idx if selected_idx is not None and selected_idx < len(company_names) else 0
+            selected = st.selectbox("Select company", company_names, index=default_idx)
+            if selected:
+                detail = filtered.filter(pl.col("company_name") == selected).to_pandas().iloc[0]
 
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.write("**Company Number:**", detail.get("company_num"))
-                st.write("**Type:**", detail.get("company_type"))
-                st.write("**Registered:**", detail.get("company_reg_date"))
-                st.write("**NACE Category:**", detail.get("nace_category"))
-                st.write("**Tech:**", "Yes" if detail.get("is_tech") else "No")
-            with col2:
-                st.write("**Address:**")
-                for i in range(1, 5):
-                    addr = detail.get(f"company_address_{i}")
-                    if addr:
-                        st.write(f"  {addr}")
-                st.write("**Eircode:**", detail.get("eircode"))
-            with col3:
-                st.write("**Industry:**", detail.get("industry") or "N/A")
-                st.write("**Sub-industry:**", detail.get("sub_industry") or "N/A")
-                st.write("**Business Model:**", detail.get("business_model") or "N/A")
-                st.write("**Stage:**", detail.get("stage") or "N/A")
-                st.write("**Founded:**", detail.get("founded_year") or "N/A")
-                st.write("**Employees:**", detail.get("employee_count") or "N/A")
-                st.write("**Funding:**", detail.get("funding_total") or "N/A")
+                with st.container(height=600):
+                    # Verdict badge
+                    verdict = detail.get("verdict") or ""
+                    if "Promising" in verdict:
+                        st.success(f"**Verdict: Promising** - {detail.get('verdict_reason') or ''}")
+                    elif "Maybe" in verdict:
+                        st.warning(f"**Verdict: Maybe** - {detail.get('verdict_reason') or ''}")
+                    elif "Pass" in verdict:
+                        st.error(f"**Verdict: Pass** - {detail.get('verdict_reason') or ''}")
 
-            # Research report (full width)
-            if detail.get("research_report"):
-                st.divider()
-                st.subheader("Investment Research Report")
-                st.markdown(detail.get("research_report"))
+                    # Company info in two columns
+                    info1, info2 = st.columns(2)
+                    with info1:
+                        st.write("**Company Number:**", detail.get("company_num"))
+                        st.write("**Registered:**", detail.get("company_reg_date"))
+                        st.write("**NACE Category:**", detail.get("nace_category"))
+                        st.write("**Industry:**", detail.get("industry") or "N/A")
+                        st.write("**Business Model:**", detail.get("business_model") or "N/A")
+                    with info2:
+                        st.write("**Stage:**", detail.get("stage") or "N/A")
+                        st.write("**Founded:**", detail.get("founded_year") or "N/A")
+                        st.write("**Employees:**", detail.get("employee_count") or "N/A")
+                        st.write("**Funding:**", detail.get("funding_total") or "N/A")
+
+                    # Research report
+                    if detail.get("research_report"):
+                        st.divider()
+                        st.markdown(detail.get("research_report"))
 
 
 if __name__ == "__main__":
