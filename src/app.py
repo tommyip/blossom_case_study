@@ -35,7 +35,7 @@ def main():
     tech_only = st.sidebar.checkbox("Tech companies only")
 
     # Research filter
-    has_research = st.sidebar.checkbox("Has research data")
+    has_research = st.sidebar.checkbox("Has research data", value=True)
 
     # Verdict filter
     selected_verdicts = []
