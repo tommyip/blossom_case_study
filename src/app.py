@@ -178,7 +178,8 @@ def main():
                     # Website link
                     website = detail.get("website")
                     if website:
-                        st.markdown(f"🔗 [{website}]({website})")
+                        url = website if website.startswith("http") else f"https://{website}"
+                        st.markdown(f"🔗 [{website}]({url})")
 
                     # Company info in two columns
                     info1, info2 = st.columns(2)

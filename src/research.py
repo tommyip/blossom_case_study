@@ -6,7 +6,9 @@ import asyncio
 import json
 import os
 import re
+from datetime import date
 
+import aiohttp
 import polars as pl
 from openai import AsyncOpenAI
 
@@ -36,7 +38,9 @@ def _build_prompt(company: dict) -> str:
             addr_parts.append(addr)
     full_address = ", ".join(addr_parts)
 
-    return f"""Research this Irish company for a Series A investment evaluation:
+    return f"""Research this Irish company for a Series A investment evaluation.
+
+Today's date: {date.today().isoformat()}
 
 Company: {company.get("company_name", "Unknown")}
 Registered: {company.get("company_reg_date", "Unknown")}
@@ -103,8 +107,11 @@ def _normalize_verdict(verdict: str | None) -> str | None:
     return verdict_map.get(verdict.lower(), verdict)
 
 
-def _clean_value(value: str | None) -> str | None:
+def _clean_value(value) -> str | None:
     """Return None for unknown/empty values."""
+    if value is None:
+        return None
+    value = str(value)
     if not value or value.lower() == "unknown":
         return None
     return value
@@ -179,6 +186,41 @@ async def research_company(company: dict) -> dict:
         return None
 
 
+async def _check_website(session: aiohttp.ClientSession, url: str) -> bool:
+    """Check if a website URL is accessible."""
+    if not url.startswith("http"):
+        url = f"https://{url}"
+    try:
+        async with session.head(url, timeout=aiohttp.ClientTimeout(total=10), allow_redirects=True) as resp:
+            return resp.status < 400
+    except Exception:
+        return False
+
+
+async def _validate_websites(results: list[dict]) -> list[dict]:
+    """Validate website URLs concurrently, set invalid ones to None."""
+    # Collect results with websites
+    with_websites = [(i, r["website"]) for i, r in enumerate(results) if r.get("website")]
+    if not with_websites:
+        return results
+
+    print(f"  Validating {len(with_websites)} websites...")
+
+    async with aiohttp.ClientSession() as session:
+        checks = await asyncio.gather(*[_check_website(session, url) for _, url in with_websites])
+
+    # Update results - set invalid websites to None
+    valid_count = 0
+    for (idx, _), is_valid in zip(with_websites, checks):
+        if is_valid:
+            valid_count += 1
+        else:
+            results[idx]["website"] = None
+
+    print(f"    {valid_count}/{len(with_websites)} websites valid")
+    return results
+
+
 async def enrich_with_research(df: pl.DataFrame, limit: int = 100) -> pl.DataFrame:
     """Enrich DataFrame with Tongyi research for top N companies."""
     # Filter for software/IT companies (not financial SPVs)
@@ -213,6 +255,9 @@ async def enrich_with_research(df: pl.DataFrame, limit: int = 100) -> pl.DataFra
     failed_count = len(results) - len(successful)
     if failed_count > 0:
         print(f"  {failed_count} companies failed research")
+
+    # Validate websites concurrently
+    successful = await _validate_websites(successful)
 
     # Create enrichment DataFrame from successful results only
     enrich_df = pl.DataFrame(successful)

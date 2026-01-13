@@ -53,9 +53,9 @@ def select_output_columns(df: pl.DataFrame) -> pl.DataFrame:
 
     # Add enrichment columns if present
     for col in ["has_eu_grant", "eu_grant_amount", "eu_project_title",
-                "research_report", "industry", "sub_industry", "tech_stack", "business_model",
-                "stage", "key_people", "funding_total", "employee_count", "founded_year",
-                "verdict", "verdict_reason"]:
+                "research_report", "website", "industry", "sub_industry", "tech_stack",
+                "business_model", "stage", "key_people", "funding_total", "employee_count",
+                "founded_year", "verdict", "verdict_reason"]:
         if col in df.columns:
             cols.append(col)
 
@@ -70,6 +70,7 @@ async def main():
     # Step 1: Download companies
     print("\n[1/5] Downloading companies...")
     companies = await download_companies()
+    companies = companies.unique(subset=["company_num"], keep="first")
     print(f"  Total companies: {companies.shape[0]:,}")
 
     # Step 2: Filter
