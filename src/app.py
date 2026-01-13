@@ -128,6 +128,7 @@ def main():
         display_cols = [
             "company_name",
             "verdict",
+            "website",
             "industry",
             "stage",
         ]
@@ -173,6 +174,11 @@ def main():
                         st.warning(f"**Verdict: Maybe** - {detail.get('verdict_reason') or ''}")
                     elif "Pass" in verdict:
                         st.error(f"**Verdict: Pass** - {detail.get('verdict_reason') or ''}")
+
+                    # Website link
+                    website = detail.get("website")
+                    if website:
+                        st.markdown(f"🔗 [{website}]({website})")
 
                     # Company info in two columns
                     info1, info2 = st.columns(2)

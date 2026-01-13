@@ -69,9 +69,11 @@ Bull case vs bear case for Series A investment.
 
 ---
 
-At the end, provide this structured data block:
-```json
+At the end, provide structured data inside <json></json> tags:
+
+<json>
 {{
+    "website": "company website URL or Unknown",
     "industry": "primary category (SaaS/Fintech/Biotech/Healthcare/AI-ML/Cybersecurity/EdTech/etc)",
     "sub_industry": "specific niche",
     "tech_stack": ["list of technologies mentioned"],
@@ -84,9 +86,9 @@ At the end, provide this structured data block:
     "verdict": "Promising/Maybe/Pass",
     "verdict_reason": "one sentence"
 }}
-```
+</json>
 
-If the company cannot be found or has minimal online presence, still provide the JSON with "Unknown" values and note this in the report."""
+If the company cannot be found or has minimal online presence, still provide the JSON with "Unknown" values."""
 
 
 def _normalize_verdict(verdict: str | None) -> str | None:
@@ -110,15 +112,15 @@ def _clean_value(value: str | None) -> str | None:
 
 def _parse_response(text: str) -> dict:
     """Parse response into markdown report + structured data."""
-    # Find the JSON block at the end
-    json_match = re.search(r"```json\s*(\{.*?\})\s*```", text, re.DOTALL)
+    # Try <json> tags first, then fall back to ```json blocks
+    json_match = re.search(r"<json>\s*(\{.*?\})\s*</json>", text, re.DOTALL)
+    if not json_match:
+        json_match = re.search(r"```json\s*(\{.*?\})\s*```", text, re.DOTALL)
 
     if json_match:
         # Extract markdown (everything before the JSON block)
         json_start = json_match.start()
         markdown_report = text[:json_start].strip()
-        if markdown_report.endswith("---"):
-            markdown_report = markdown_report[:-3].strip()
 
         # Parse JSON
         try:
@@ -135,6 +137,7 @@ def _parse_response(text: str) -> dict:
 
     return {
         "research_report": markdown_report,
+        "website": _clean_value(structured.get("website")),
         "industry": _clean_value(structured.get("industry")),
         "sub_industry": _clean_value(structured.get("sub_industry")),
         "tech_stack": json.dumps(tech_stack) if tech_stack else None,
@@ -172,21 +175,8 @@ async def research_company(company: dict) -> dict:
         return result
 
     except Exception as e:
-        return {
-            "company_name": company.get("company_name"),
-            "research_report": f"Error researching company: {e}",
-            "industry": None,
-            "sub_industry": None,
-            "tech_stack": None,
-            "business_model": None,
-            "stage": None,
-            "key_people": None,
-            "funding_total": None,
-            "employee_count": None,
-            "founded_year": None,
-            "verdict": None,
-            "verdict_reason": None,
-        }
+        print(f"    Failed: {company.get('company_name')} - {e}")
+        return None
 
 
 async def enrich_with_research(df: pl.DataFrame, limit: int = 100) -> pl.DataFrame:
@@ -218,8 +208,14 @@ async def enrich_with_research(df: pl.DataFrame, limit: int = 100) -> pl.DataFra
 
     results = await asyncio.gather(*[limited_research(c) for c in companies])
 
-    # Create enrichment DataFrame
-    enrich_df = pl.DataFrame(list(results))
+    # Filter out failed results
+    successful = [r for r in results if r is not None]
+    failed_count = len(results) - len(successful)
+    if failed_count > 0:
+        print(f"  {failed_count} companies failed research")
+
+    # Create enrichment DataFrame from successful results only
+    enrich_df = pl.DataFrame(successful)
 
     # Join back to original
     df = df.join(enrich_df, on="company_name", how="left")
