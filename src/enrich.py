@@ -1,45 +1,59 @@
 """
 Enrichment functions for company data.
-
-CORDIS data would need manual download from:
-https://data.europa.eu/data/datasets/cordis-eu-research-projects-under-horizon-europe-2021-2027
 """
 
+import io
+import json
+import zipfile
 from pathlib import Path
 
 import aiohttp
 import polars as pl
 
+from src.http import cache, TTL
+
 DATA_DIR = Path(__file__).parent.parent / "data"
+CORDIS_URL = "https://cordis.europa.eu/data/cordis-HORIZONprojects-json.zip"
 
 
 async def download_cordis() -> pl.DataFrame:
-    """Load CORDIS data if manually downloaded.
+    """Download CORDIS organization data and filter for Irish companies."""
+    cache_key = "cordis:organizations:IE"
 
-    Download CSV from data.europa.eu and place in data/cordis_horizon.csv
-    """
-    path = DATA_DIR / "cordis_horizon.csv"
-    if not path.exists():
-        print("CORDIS data not found. Download from data.europa.eu and save to data/cordis_horizon.csv")
+    if cache_key in cache:
+        return pl.DataFrame(cache[cache_key])
+
+    print("  Downloading CORDIS data...")
+    async with aiohttp.ClientSession() as session:
+        async with session.get(CORDIS_URL) as resp:
+            if resp.status != 200:
+                print(f"  Failed to download CORDIS data: {resp.status}")
+                return pl.DataFrame()
+            data = await resp.read()
+
+    # Extract organization.json from zip
+    with zipfile.ZipFile(io.BytesIO(data)) as zf:
+        with zf.open("organization.json") as f:
+            orgs = json.load(f)
+
+    # Filter for Irish organizations
+    irish_orgs = [o for o in orgs if o.get("country") == "IE"]
+    print(f"  Found {len(irish_orgs)} Irish organizations in CORDIS")
+
+    if not irish_orgs:
         return pl.DataFrame()
 
-    df = pl.read_csv(path, infer_schema_length=10000, ignore_errors=True)
+    # Convert to DataFrame
+    df = pl.DataFrame(irish_orgs)
 
-    # Filter for Ireland
-    for col in ["organizationCountry", "country"]:
-        if col in df.columns:
-            return df.filter(pl.col(col) == "IE")
-
-    country_cols = [c for c in df.columns if "country" in c.lower()]
-    if country_cols:
-        return df.filter(pl.col(country_cols[0]) == "IE")
+    # Cache the result
+    cache.set(cache_key, df.to_dicts(), expire=TTL)
 
     return df
 
 
 def match_grants(companies: pl.DataFrame, cordis: pl.DataFrame) -> pl.DataFrame:
-    """Match companies to CORDIS grants by name (fuzzy match)."""
-    # Simple approach: exact match on normalized names
+    """Match companies to CORDIS grants by name."""
     if cordis.is_empty():
         return companies.with_columns(
             pl.lit(False).alias("has_eu_grant"),
@@ -49,47 +63,32 @@ def match_grants(companies: pl.DataFrame, cordis: pl.DataFrame) -> pl.DataFrame:
 
     # Normalize company names for matching
     companies = companies.with_columns(
-        pl.col("company_name").str.to_uppercase().str.strip_chars().alias("_name_norm")
+        pl.col("company_name")
+        .str.to_uppercase()
+        .str.replace_all(r"\s+(LIMITED|LTD|DAC|PLC|DESIGNATED ACTIVITY COMPANY)\.?$", "")
+        .str.strip_chars()
+        .alias("_name_norm")
     )
-
-    # Find the organization/name column in CORDIS
-    name_col = None
-    for col in ["organisationName", "organizationName", "name", "legalName"]:
-        if col in cordis.columns:
-            name_col = col
-            break
-
-    if not name_col:
-        return companies.drop("_name_norm").with_columns(
-            pl.lit(False).alias("has_eu_grant"),
-            pl.lit(None).cast(pl.Float64).alias("eu_grant_amount"),
-            pl.lit(None).cast(pl.Utf8).alias("eu_project_title"),
-        )
-
-    # Find grant amount column
-    amount_col = None
-    for col in ["ecContribution", "totalCost", "ecMaxContribution"]:
-        if col in cordis.columns:
-            amount_col = col
-            break
-
-    # Find project title column
-    title_col = None
-    for col in ["title", "projectTitle", "acronym"]:
-        if col in cordis.columns:
-            title_col = col
-            break
 
     # Normalize CORDIS names
     cordis = cordis.with_columns(
-        pl.col(name_col).str.to_uppercase().str.strip_chars().alias("_name_norm")
+        pl.col("name")
+        .str.to_uppercase()
+        .str.replace_all(r"\s+(LIMITED|LTD|DAC|PLC)\.?$", "")
+        .str.strip_chars()
+        .alias("_name_norm")
+    )
+
+    # Cast ecContribution to float (it can be string or number)
+    cordis = cordis.with_columns(
+        pl.col("ecContribution").cast(pl.Float64, strict=False).alias("ecContribution")
     )
 
     # Aggregate grants per organization
     grant_agg = cordis.group_by("_name_norm").agg(
         pl.lit(True).alias("has_eu_grant"),
-        pl.col(amount_col).sum().alias("eu_grant_amount") if amount_col else pl.lit(None).alias("eu_grant_amount"),
-        pl.col(title_col).first().alias("eu_project_title") if title_col else pl.lit(None).alias("eu_project_title"),
+        pl.col("ecContribution").sum().alias("eu_grant_amount"),
+        pl.col("projectAcronym").first().alias("eu_project_title"),
     )
 
     # Left join

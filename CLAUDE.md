@@ -36,6 +36,7 @@ uv run streamlit run src/app.py  # run dashboard
 - **CRO bulk download** - 805k companies from opendata.cro.ie
 - **Filtering** - Normal status, last 5 years, LTD/DAC types → ~107k companies
 - **NACE mapping** - Industry categories, tech company identification → ~24k tech companies
+- **EU Grants** - CORDIS Horizon data auto-downloaded and matched by company name
 - **Deep Research** - Tongyi DeepResearch via OpenRouter for top 100 software companies
   - Investment memos with company overview, market, technology, team, funding, competitive landscape
   - Structured data: industry, stage, verdict, key people, funding, employees
@@ -57,10 +58,6 @@ uv run streamlit run src/app.py  # run dashboard
 **Tested**: Playwright (headless/headed), playwright-stealth, nodriver - all blocked
 **Solution needed**: Captcha-solving service (2Captcha) or manual session cookies
 
-### CORDIS EU Grants
-**Status**: URL changed, needs manual download
-**Source**: https://data.europa.eu/data/datasets/cordis-eu-research-projects-under-horizon-europe-2021-2027
-**Action**: Download CSV manually to `data/cordis_horizon.csv`
 
 ---
 
