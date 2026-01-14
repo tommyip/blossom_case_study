@@ -110,3 +110,74 @@ async def extract_all_guests(episodes: list[dict], concurrency: int = 20) -> lis
 
     results = await asyncio.gather(*[limited_extract(ep) for ep in episodes])
     return [r for r in results if r is not None]
+
+
+async def cluster_guests(guests: list[dict]) -> list[dict]:
+    """Use DeepSeek to identify same person across different name variations."""
+    # Build list of unique guest/company pairs
+    unique_pairs = list({(g["guest_name"], g["company_name"]) for g in guests})
+
+    if len(unique_pairs) <= 1:
+        return guests
+
+    pairs_text = "\n".join(f"{i+1}. {name} @ {company}" for i, (name, company) in enumerate(unique_pairs))
+
+    prompt = f"""Here are podcast guests extracted from different episodes. Some may be the same person with slightly different name spellings or company name variations.
+
+{pairs_text}
+
+Identify which entries refer to the SAME person. Return JSON mapping each index to a canonical form:
+{{
+    "clusters": {{
+        "1": {{"name": "Canonical Name", "company": "Canonical Company"}},
+        "2": {{"name": "Canonical Name", "company": "Canonical Company"}},
+        ...
+    }}
+}}
+
+Rules:
+- If entries are the same person, give them the same canonical name/company
+- Use the most complete/formal version of the name
+- Use the most recognizable company name
+- If unsure, keep them separate
+
+Return JSON only."""
+
+    try:
+        client = _get_client()
+        response = await client.chat.completions.create(
+            model=EXTRACT_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0,
+        )
+        text = response.choices[0].message.content
+
+        # Parse response
+        json_match = re.search(r"\{.*\}", text, re.DOTALL)
+        if not json_match:
+            return guests
+
+        data = json.loads(json_match.group())
+        clusters = data.get("clusters", {})
+
+        # Build mapping from original to canonical
+        mapping = {}
+        for i, (name, company) in enumerate(unique_pairs):
+            idx = str(i + 1)
+            if idx in clusters:
+                canonical = clusters[idx]
+                mapping[(name, company)] = (canonical.get("name", name), canonical.get("company", company))
+            else:
+                mapping[(name, company)] = (name, company)
+
+        # Apply mapping to all guests
+        for g in guests:
+            key = (g["guest_name"], g["company_name"])
+            if key in mapping:
+                g["guest_name"], g["company_name"] = mapping[key]
+
+        return guests
+
+    except Exception as e:
+        print(f"    Clustering failed: {e}")
+        return guests

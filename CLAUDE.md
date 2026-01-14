@@ -24,8 +24,13 @@ Scraper for Irish CRO to identify Series A investment opportunities. Case study 
 ## Commands
 
 ```bash
-uv run python -m src.main        # run scraper
-uv run streamlit run src/app.py  # run dashboard
+# CRO Company Registry
+uv run python -m src.main        # run CRO scraper
+uv run streamlit run src/app.py  # run CRO dashboard
+
+# Podcast Signal Tracker
+uv run python -m src.podcast.scraper  # run podcast scraper
+uv run streamlit run src/podcast/app.py  # run podcast dashboard
 ```
 
 ---
@@ -47,6 +52,18 @@ uv run streamlit run src/app.py  # run dashboard
 - Per-domain rate limiting via `aiolimiter`
 - Disk caching with 1-day TTL for resume/retry
 - Async HTTP with `aiohttp`
+
+### Podcast Signal Tracker
+Identifies founders doing "podcast tours" before funding announcements.
+
+- **RSS Feed Scraping** - 10 startup podcasts (20VC, The Pitch, How I Built This, etc.)
+- **Guest Extraction** - DeepSeek extracts guest name, company, role from episode metadata
+- **Guest Clustering** - DeepSeek identifies same person across name variations
+- **Signal Scoring** - Appearances × 2 + unique podcasts × 1.5 + founder bonus + recency bonus
+- **Deep Research** - Tongyi DeepResearch for founders with 2+ appearances
+- **Output**: Parquet files + per-company research JSONs
+
+**Signal**: Founders with 2+ podcast appearances across different shows = potential fundraise coming.
 
 ---
 

@@ -8,13 +8,11 @@ FEEDS = [
     ("The Pitch", "https://feeds.megaphone.fm/thepitch"),
     ("Twenty Minute VC", "https://feeds.megaphone.fm/WWO3519750118"),
     ("Product Market Fit Show", "https://rss.buzzsprout.com/1889238.rss"),
-    ("Indie Hackers", "https://feeds.transistor.fm/the-indie-hackers-podcast"),
     ("My First Million", "https://feeds.megaphone.fm/HS2300184645"),
     ("How I Built This", "https://rss.art19.com/how-i-built-this"),
     ("This Week in Startups", "https://anchor.fm/s/7c624c84/podcast/rss"),
-    ("The Full Ratchet", "https://anchor.fm/s/7c624c84/podcast/rss"),
+    ("The Full Ratchet", "https://fullratchet.libsyn.com/rss"),
     ("Equity", "https://feeds.megaphone.fm/YFL6537156961"),
-    ("Startup Savant", "https://feeds.simplecast.com/y_IjPwmW"),
 ]
 
 
@@ -47,7 +45,7 @@ def fetch_feed(name: str, url: str, cutoff: datetime) -> list[dict]:
         return []
 
 
-def fetch_all_feeds(days: int = 90) -> list[dict]:
+def fetch_all_feeds(days: int = 365) -> list[dict]:
     """Fetch episodes from all feeds within time window."""
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     all_episodes = []
