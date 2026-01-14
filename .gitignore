@@ -1,6 +1,11 @@
 # Data
 data/
-output/
+
+# Ignore output except app data files
+output/*
+!output/companies.parquet
+!output/podcast/
+output/podcast/research/
 
 # Python
 __pycache__/
