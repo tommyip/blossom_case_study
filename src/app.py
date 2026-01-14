@@ -33,7 +33,7 @@ def cro_tab():
         return
 
     # Filters in expander
-    with st.expander("🔍 Filters", expanded=False):
+    with st.expander("🔍 Filters", expanded=True):
         col1, col2, col3 = st.columns(3)
         with col1:
             categories = sorted([c for c in df["nace_category"].unique().to_list() if c])
@@ -196,7 +196,7 @@ def podcast_tab():
         return
 
     # Filters in expander
-    with st.expander("🔍 Filters", expanded=False):
+    with st.expander("🔍 Filters", expanded=True):
         col1, col2, col3 = st.columns(3)
         with col1:
             min_appearances = st.slider("Min appearances", 1, 5, 1, key="pod_appearances")
