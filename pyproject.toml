@@ -19,4 +19,5 @@ dependencies = [
     "nodriver>=0.48.1",
     "duckduckgo-search>=8.1.1",
     "openai>=2.15.0",
+    "feedparser>=6.0.12",
 ]
