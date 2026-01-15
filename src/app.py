@@ -6,7 +6,7 @@ import streamlit as st
 DATA_PATH = Path(__file__).parent.parent / "output" / "companies.parquet"
 PODCAST_DIR = Path(__file__).parent.parent / "output" / "podcast"
 
-st.set_page_config(page_title="Blossom Investment Signals", page_icon="🌸", layout="wide")
+st.set_page_config(page_title="Blossom Investment Signals", layout="wide")
 
 
 @st.cache_data
@@ -195,6 +195,8 @@ def podcast_tab():
         st.error("No podcast data found. Run `uv run python -m src.podcast.scraper` first.")
         return
 
+    st.caption("**Why podcasts?** Founders often do a \"podcast tour\" before announcing a fundraise. A spike in appearances across startup podcasts signals something is happening and this channel is under-monitored compared to Twitter, LinkedIn, or press. Catching founders mid-tour means reaching them before the round is oversubscribed.")
+
     # Filters in expander
     with st.expander("🔍 Filters", expanded=True):
         col1, col2, col3 = st.columns(3)
@@ -240,10 +242,10 @@ def podcast_tab():
     left_col, right_col = st.columns([2, 3])
 
     with left_col:
-        st.subheader("Founders by Appearances")
+        st.subheader("Founders by Signal Score")
 
         display_cols = ["guest_name", "company_name", "appearances", "unique_podcasts", "signal_score", "funding_total", "latest_round"]
-        display_df = filtered.sort("appearances", descending=True).select([c for c in display_cols if c in filtered.columns])
+        display_df = filtered.sort("signal_score", descending=True).select([c for c in display_cols if c in filtered.columns])
 
         selection = st.dataframe(
             display_df.to_pandas(),
