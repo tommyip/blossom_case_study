@@ -331,7 +331,7 @@ def podcast_tab():
 
 
 def main():
-    st.title("🌸 Blossom Investment Signals")
+    st.title("Blossom Investment Signals")
 
     tab1, tab2 = st.tabs(["🇮🇪 CRO Companies", "🎙️ Podcast Signals"])
 

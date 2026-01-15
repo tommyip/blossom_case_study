@@ -2,6 +2,8 @@
 
 Investment opportunity screener for Irish companies, built for Series A deal sourcing.
 
+See also: [Podcast Signal Tracker](src/podcast/README.md) (Part 3 Non-obvious data source) - identifies founders doing podcast tours before funding announcements.
+
 ## Data Pipeline
 
 ### 1. Company Registry (CRO)
@@ -67,17 +69,26 @@ Investment opportunity screener for Irish companies, built for Series A deal sou
 
 ## Data Not Available
 
+### Financial Statements
+**Source:** opendata.cro.ie financial statements dataset
+**Status:** Available as PDF filings only - no structured data
+**Workaround needed:** OCR/PDF extraction pipeline
+
+**Would provide:** Total assets, shareholder funds, turnover, profit/loss, cash & cash equivalents, creditors, debtors, employee count. High-value signals for identifying companies with strong financials, growth trajectories, and runway.
+
+**Why not implemented:** The CRO open data portal provides filing metadata (PDF filenames, submission dates) but the actual financial figures are locked inside PDF documents. Building a reliable OCR pipeline to extract structured data from Irish company accounts is a substantial undertaking - not feasible for a take-home exercise but would be high value in production.
+
 ### Company Directors (CORE)
 **Source:** core.cro.ie
 **Status:** Blocked by Cloudflare Turnstile captcha
-**Workaround needed:** Captcha-solving service or manual session
+**Workaround needed:** Build a captcha evading scraper.
 
 **Would provide:** Director names, appointments, resignations. Useful for identifying serial founders, tracking team changes, and finding warm intro paths.
 
 ### Job Postings
 **Source:** Indeed, LinkedIn
 **Status:** Blocked (403 responses)
-**Workaround needed:** Browser automation or API access
+**Workaround needed:** Build a bot detection evading scraper.
 
 **Would provide:** Open roles, hiring velocity. Strong signal for growth stage and runway - companies hiring aggressively are scaling.
 
