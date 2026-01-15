@@ -203,7 +203,7 @@ def podcast_tab():
         with col2:
             min_score = st.slider("Min signal score", 0.0, 20.0, 0.0, key="pod_score")
         with col3:
-            high_signal_only = st.checkbox("High-signal only (2+ appearances)", value=True, key="pod_high")
+            high_signal_only = st.checkbox("High-signal only (2+ appearances)", value=False, key="pod_high")
 
     # Apply filters
     filtered = analysis
@@ -240,10 +240,10 @@ def podcast_tab():
     left_col, right_col = st.columns([2, 3])
 
     with left_col:
-        st.subheader("Founders by Signal Score")
+        st.subheader("Founders by Appearances")
 
         display_cols = ["guest_name", "company_name", "appearances", "unique_podcasts", "signal_score", "funding_total", "latest_round"]
-        display_df = filtered.select([c for c in display_cols if c in filtered.columns])
+        display_df = filtered.sort("appearances", descending=True).select([c for c in display_cols if c in filtered.columns])
 
         selection = st.dataframe(
             display_df.to_pandas(),
